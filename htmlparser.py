@@ -1,6 +1,6 @@
 from loguru import logger
 from bs4 import BeautifulSoup
-import re
+import re, json
 
 @logger.catch
 def prettify():
@@ -10,69 +10,45 @@ def prettify():
     with open("./prettified.html", "w") as wfp:
         wfp.write(soup.prettify())
 
-#@logger.catch
-def getList(soup):
-    """
-    Argument soup is the h4 soup containing title.
-    e.g. <h4 class=...> Lv7.2 ... </h4>.
-    Return: [["曲名", "Diff", ..., "Version", "Comment"], ...]
-    """
-    try:
-        titlesoup = soup.table.tbody.tr # Normal
-    except:
-        retry = 40
-        titlesoup = soup
-        while(titlesoup.name != "div" and retry > 0):
-            retry = retry - 1
-            titlesoup = titlesoup.next_sibling
-            logger.warning(titlesoup)
+@logger.catch
+def getDict(soup):
+    Divlist = soup.find_all("div", "h-scrollable")
+    Dict = {}
+    for i in Divlist:
+        titlesoup = i.find_previous("h4")
+        level = titlesoup.get_text().split("v")[1].split("(")[0]
+        ptrsoup = i.table.tbody.tr.next_sibling.next_sibling
+        TempList = []
+        ResList = []
+        while(1):
             try:
-                if titlesoup["class"] != "h-scrollable":
-                    continue
-                titlesoup = titlesoup.table.tbody.tr
-                break
+                if ptrsoup.name != "tr":
+                    break
             except:
-                continue
-    ptrsoup = titlesoup.next_sibling.next_sibling
-    TempList = []
-    ResList = []
-    while(1):
-        try:
-            if ptrsoup.name != "tr":
                 break
-        except:
-            break
-        oneList = []
-        for i in ptrsoup.contents:
-            try:
-                text = i.get_text().strip().replace("\n            ", "")
-                oneList.append(text)
-            except:
-                pass
-        TempList.append(oneList)
-        ptrsoup = ptrsoup.next_sibling.next_sibling
+            oneList = []
+            for i in ptrsoup.contents:
+                try:
+                    text = i.get_text().strip().replace("\n            ", "")
+                    oneList.append(text)
+                except:
+                    pass
+            TempList.append(oneList)
+            ptrsoup = ptrsoup.next_sibling.next_sibling
 
-    for i in range(len(TempList)):
-        if i % 2:
-            ResList[-1].append(TempList[i][0])
-        else:
-            ResList.append(TempList[i])
-    #print(ResList)
-    return ResList
+        for i in range(len(TempList)):
+            if i % 2:
+                ResList[-1].append(TempList[i][0])
+            else:
+                ResList.append(TempList[i])
 
+        Dict[level] = ResList
+    return Dict
 
 #prettify()
+
 with open("./prettified.html") as fp:
     soup = BeautifulSoup(fp)
-Dict = {}
-#titlesoup = soup.h4
-titleList = soup.find_all("h4")
-for titlesoup in titleList:
-    level = titlesoup.get_text().split("v")[1].split("(")[0]
-    #try:
-    #    Dict[level] = getList(titlesoup.next_sibling.next_sibling)
-    #except AttributeError:
-        #Dict[level] = getList(titlesoup.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling)
-        #pass
-    Dict[level] = getList(titlesoup.next_sibling.next_sibling)
-print(Dict)
+
+with open("./RawDict.json", "w") as fp:
+    json.dump(getDict(soup), fp, ensure_ascii=False)
