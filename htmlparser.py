@@ -51,4 +51,4 @@ with open("./prettified.html") as fp:
     soup = BeautifulSoup(fp)
 
 with open("./RawDict.json", "w") as fp:
-    json.dump(getDict(soup), fp, ensure_ascii=False)
+    json.dump(getDict(soup), fp, ensure_ascii=False, indent=4)
